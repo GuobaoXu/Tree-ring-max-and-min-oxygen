@@ -1,0 +1,194 @@
+### 0. initial load packages------
+
+library("basicTrendline")
+library("dendroTools")
+library(treeclim)
+library(openxlsx)
+library(prettycode)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(RColorBrewer)
+library(ggpubr)
+library(gridExtra)
+library(latticeExtra)
+library(lubridate)
+library(tsbox)## this package is used to process the time series
+library(forecast)## this package can help us to extract the month in a series!!
+library(easyGgplot2)
+library("scales") ## this package help to scale the plot with two a-axises
+library(lavaan)## package for the SEM
+library(semPlot)## for the SEM plot
+library(plotly)
+library(corrplot)
+##library(devtools)
+#install_github("kassambara/easyGgplot2")
+## first to detect the maximum, minimum, and mean values of the annual rings
+
+# 1 detect the changes in the min, max, and mean chron ------------------
+#the output order is o.min,o.max,oc.mean, using the my function detectisotope.
+stableA.st  <- detectisotope(1900,2014,stableA)
+stableB.st <- detectisotope(1900,2014,stableB)
+stableC.st <- detectisotope(1900,2014,stableC)
+stableD.st <- detectisotope(1900,2014,stableD)
+stableE.st <- detectisotope(1900,2014,stableE)
+
+## calculate the mean, max, and min values for the series. Use the packages dplyr
+stabe.all.o.min <- rbind(stableA.st$omin,stableB.st$omin,stableC.st$omin,stableD.st$omin,stableE.st$omin)
+
+stabe.all.o.min$treeID <-c(rep("A",nrow(stableA.st$omin)),
+                             rep("B",nrow(stableB.st$omin)),
+                           rep("C",nrow(stableC.st$omin)),
+                           rep("D",nrow(stableD.st$omin)),
+                           rep("E",nrow(stableE.st$omin)))
+stable.all.omin.mean <- stabe.all.o.min %>%group_by(V1)%>%
+  summarise(mean=mean(mo,na.rm=TRUE),sd.o=sd(mo,na.rm=TRUE))
+
+
+stabe.all.o.max <- rbind(stableA.st$omax,stableB.st$omax,stableC.st$omax,stableD.st$omax,stableE.st$omax)
+stabe.all.o.max$treeID <-c(rep("A",nrow(stableA.st$omax)),
+                             rep("B",nrow(stableB.st$omax)),
+                           rep("C",nrow(stableC.st$omax)),
+                           rep("D",nrow(stableD.st$omax)),
+                           rep("E",nrow(stableE.st$omax)))
+
+stable.all.omax.mean <- stabe.all.o.max %>%group_by(V1)%>%
+  summarise(mean=mean(mo,na.rm=TRUE),sd.o=sd(mo,na.rm=TRUE))
+
+position.allomin.p<-ggplot(stabe.all.o.min,
+                          aes(x=V1,y=V4,group=treeID,col=treeID))+
+  geom_point()+geom_line()+
+  xlab("Year")+ylab("Proportion to boundary")+
+  mythemeplot()
+position.allomax.p<-ggplot(stabe.all.o.max,
+                          aes(x=V1,y=V4,group=treeID,col=treeID))+
+  geom_point()+geom_line()+
+  xlab("Year")+ylab("Proportion to boundary")+
+  mythemeplot()
+
+
+stabe.all.o.sd <- as.data.frame(rbind(stableA.st$osd,stableB.st$osd,stableC.st$osd,stableD.st$osd,stableE.st$osd))
+stable.all.o.sd.mean <- stabe.all.o.sd %>%group_by(V1)%>%
+  summarise(mean=mean(sdo,na.rm=TRUE),sd.o=sd(sdo,na.rm=TRUE))
+stabe.all.o.sd3 <- as.data.frame(rbind(stableA.st$osd,stableB.st$osd,stableC.st$osd))
+stable.all.o.sd3.mean <- stabe.all.o.sd3 %>%group_by(V1)%>%
+  summarise(mean=mean(sdo,na.rm=TRUE),sd.o=sd(sdo,na.rm=TRUE))
+
+
+## plot the position of annual min, annual max and EW-LW max--
+tiff("./plot/EW-LW and annual max-min position with time.tiff",
+     width = 26,height = 24,units = "cm",
+     compression = "lzw",bg="white",res = 300,family = "serif")
+ggarrange(position.allomin.p,position.allomax.p,
+          position.EWomax.p,position.LWomax.p,
+          ncol=2,nrow = 2,
+          labels = c("a. Annual-min","b. Annual-max","c. EW-max","d. LW-max"),
+          label.x = 0.1,
+          label.y = 0.95,
+          font.label = list(size=16,family="serif"),
+          common.legend = TRUE)
+dev.off()
+
+# 1.0.0 calculate the EPS, rBar ---------------------------------------------
+
+##prepare the data for the EPS and rbar calculation
+####annual scale------
+
+omin.rwl <- spread(subset(stabe.all.o.min,select = c("V1","ID","mo")),key = ID,value = mo)
+rownames(omin.rwl) <- omin.rwl$V1
+
+oEWmax.rwl <- spread(subset(stabe.allEW.o.max,select = c("V1","ID","mo")),key = ID,value = mo)
+rownames(oEWmax.rwl) <- oEWmax.rwl$V1
+
+oLWmax.rwl <- spread(subset(stabe.allLW.o.max,select = c("V1","ID","mo")),key = ID,value = mo)
+rownames(oLWmax.rwl) <- oLWmax.rwl$V1
+
+omax.rwl <- spread(subset(stabe.all.o.max,select = c("V1","ID","mo")),key = ID,value = mo)
+rownames(omax.rwl) <- omax.rwl$V1
+
+
+rwi.stats(omin.rwl[-1],period=c("max"))
+o.rwi.stats <- rwi.stats.running(omin.rwl[-1],period=c("max"),window.length = 35)
+
+
+rwi.stats(omax.rwl[-1],period=c("max"))
+o.rwi.stats <- rwi.stats.running(omax.rwl[-1],period=c("max"),window.length = 35)
+
+rwi.stats(oEWmax.rwl[-1],period=c("max"))
+o.EWrwi.stats <- rwi.stats.running(oEWmax.rwl[-1],period=c("max"),window.length = 35)
+
+rwi.stats(oLWmax.rwl[-1],period=c("max"))
+o.LWrwi.stats <- rwi.stats.running(oLWmax.rwl[-1],period=c("max"),window.length = 35)
+
+##### 1.0.1 plot for the position of max and min values and mean variability---------
+
+max.oplot<- ggplot(stabe.all.o.max, aes(x=V4, color=wood)) +
+  geom_histogram(fill="white", alpha=0.5, 
+                 position="identity",binwidth = 0.1)+
+  mythemeplot()+
+  xlab('Proportion to boundary')+ylab("count")+
+  theme(legend.title = element_blank(),
+        axis.title.y = element_blank(),
+        plot.margin = unit(c(0,0,0,0),"lines"))+
+  scale_x_continuous(
+  labels = scales::number_format(accuracy = 0.1))
+
+maxEW.oplot<- ggplot(stabe.allEW.o.max, aes(x=V4, color=wood)) +
+  geom_histogram(fill="white", alpha=0.5, 
+                 position="identity",binwidth = 0.1)+
+  #scale_color_manual(values=c("#00BFC4"))+
+  mythemeplot()+
+  xlab('Proportion to boundary')+ylab("count")+
+  theme(legend.title = element_blank(),
+        axis.title.y = element_blank(),
+        plot.margin = unit(c(0,0,0,0),"lines"))
+
+maxLW.oplot<- ggplot(stabe.allLW.o.max, aes(x=V4, color=wood)) +
+  geom_histogram(fill="white", alpha=0.5, 
+                 position="identity",binwidth = 0.1)+
+  scale_color_manual(values=c("#00BFC4"))+
+  mythemeplot()+
+  xlab('Proportion to boundary')+ylab("count")+
+  theme(legend.title = element_blank(),
+        axis.title.y = element_blank(),
+        plot.margin = unit(c(0,0,0,0),"lines"))
+
+min.oplot <-ggplot(stabe.all.o.min, aes(x=V4,color=wood)) +
+  geom_histogram(fill="white", alpha=0.5, 
+                 position="identity",binwidth = 0.1)+
+  xlab('Proportion to boundary')+ylab("count")+
+  mythemeplot()+
+  theme(legend.title = element_blank(),
+        plot.margin = unit(c(0,0,0,0),"lines"))+
+  scale_x_continuous(
+  labels = scales::number_format(accuracy = 0.1))
+
+
+
+tiff("./plot/Figure 2 max-min position.tiff",width = 26,height = 24,units = "cm",
+     compression = "lzw",bg="white",res = 300)
+
+
+#lines(density(stabe.all.o.max$V4), col="blue", lwd=2)
+text(0.1,3.0,labels = "a",cex=2.5)
+
+hist(stabe.all.o.min$V4,freq = F,main='Min oxygen',
+     xlab='Relative position',ylab = "Density")
+#lines(density(stabe.all.o.min$V4), col="blue", lwd=2)
+text(0.1,2,labels = "b",cex=2.5)
+
+hist(stabe.all.c.max$V4,freq = F,main='Max carbon',
+     xlab='Relative position',ylab = "Density")
+#lines(density(stabe.all.o.max$V4), col="blue", lwd=2)
+text(0.1,1.5,labels = "c",cex=2.5)
+
+hist(stabe.all.c.min$V4,freq = F,main='Min carbon',
+     xlab='Relative position',ylab = "Density")
+#lines(density(stabe.all.o.min$V4), col="blue", lwd=2)
+text(0.1,2,labels = "d",cex=2.5)
+
+dev.off()
+
+
+ 
+
