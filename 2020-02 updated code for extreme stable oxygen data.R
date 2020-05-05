@@ -335,29 +335,57 @@ axis.title.x=element_blank(),
 oxymean_grob <- ggplotGrob(oxy.meanbox)
 
 oxyplot1 <- oxyplot + annotation_custom(grob = oxymean_grob, xmin = as.Date("1940-01-01"),xmax=as.Date("1970-06-01"), ymin = 32, ymax = 35.5)
+
+## here using the ggmap to plot the samplign site
+## the map data are too large and I did not upload them,
+## If you need the map data, please contact me.
+# source(file = "./code/sampling_map.R")
+
+tiff("./plot/Figure 1-Sampling site and climate diagram.tiff ",
+     height = 16,width=18,units = "cm",res=800,compression = "lzw",
+     family = "serif")
+  ggarrange(gg_combine,
+    ggarrange(clima,climb,oxy.p,
+             ncol=3,labels=c("b","c","d"),
+             label.x = 0.2,
+             label.y = 0.99,
+             align = "hv",
+            font.label = list(size=22,family="serif")),
+    ncol=1,nrow = 2,
+    heights = c(2, 1.4),
+    labels = c("a",""),
+                label.x = 0.67,
+                label.y = 0.99,
+    align = "hv",
+            font.label = list(size=22,family="serif"))
+dev.off()
    
-tiff("./plot/Figure 1-GRL distribution & variability of oxygen max and min-1.tiff ",
-     height = 22,width=20,units = "cm",res=800,compression = "lzw",
+tiff("./plot/Figure 2-GRL distribution & variability of oxygen max and min.tiff ",
+     height = 16,width=20,units = "cm",res=800,compression = "lzw",
      family = "serif")
   ggarrange(
-    ggarrange(clima,climb,oxy.p,
-             ncol=3,labels=c("a","b","c"),
-             label.x = c(0.17,0.17,0.19),
-             label.y = 1,
-            font.label = list(size=22,family="serif")),
+    # ggarrange(clima,climb,oxy.p,
+    #          ncol=3,labels=c("a","b","c"),
+    #          label.x = c(0.17,0.17,0.19),
+    #          label.y = 1,
+    #         font.label = list(size=22,family="serif")),
     ggarrange(min.oplot,max.oplot,maxEW.oplot,maxLW.oplot,
-            ncol=4,labels = c("d","e","f","g"),
-            label.x = c(0.18,0.17,0.17,0.17),
+            ncol=4,labels = c("a","b","c","d"),
+            #label.x = c(0.18,0.17,0.17,0.17),
+            label.x =0.25,
             label.y = 1.0,
+            align = "v",
             common.legend = TRUE, legend="right",
             font.label = list(size=22,family="serif")),
     oxyplot1,
-    ncol=1,nrow = 3,
-    labels = c("","","h"),
+    ncol=1,nrow = 2,
+    heights = c(1.5,2),
+    labels = c("","e"),
                 label.x = 0.08,
                 label.y = 0.99,
             font.label = list(size=22,family="serif"))
 dev.off()
+
 
 ## Part 3. Climate response analysis----
 
@@ -1052,6 +1080,9 @@ reg2<-ggplot(regree.data,aes(x=LWEWmaxo18,y=rh10)) +
        method = "loess",span=0.2,se=FALSE,lwd=1.5,col=4)+
     #geom_line(data=spline.pdsi,aes(x=x,y=y))+
     geom_smooth(data=subset(reconcomdata,type=="reconstruction"),aes(x=year,y=scpdsi),method = "loess",span=0.75,se=TRUE,col=c("blue"))+#col=c("#00BFC4"))
+    geom_smooth(data = CRU.all,aes(x=year,y=scpdsi),
+                method = "loess",span=0.75,se=TRUE,
+                col=c("Darkorange"))+
     xlab("")+ylab("July-September scPDSI")+
     scale_x_continuous(expand = c(0.01,0.01))+
     mythemeplot()+
